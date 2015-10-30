@@ -2,12 +2,13 @@ function Experiment1
 addpath('scripts/');
 
 
-
+params.usePregenCs = 1;
 %% get subject number and randomise random seed
-% subjNum = input('input subject number: ');
-% RandStream('mt19937ar', 'Seed', subjNum);
-% % RandStream.setDefaultStream(stream);
+subjNum = input('input subject number: ');
+RandStream('mt19937ar', 'Seed', subjNum);
+% RandStream.setDefaultStream(stream);
 
+params.targDisplayTime = 0.1;
 
 params.bkgrndColour = 125;
 params.delta = 280;
@@ -16,7 +17,7 @@ params.w = 6;
 params.letterSpace = 15;
 
 params.flankerIntensity = 225;
-params.targetIntensity  = 175;
+params.targetIntensity  = 225;
 
 params.boxW = 2;
 params.boxN = 48;
@@ -28,24 +29,53 @@ params.Cr1 = 12;
 params.Cr2 = 8;
 params.Cw = 8;
 params.Cphi = [0 90, 180, 270];
+params.CphiLabels = {'up', 'left','down', 'right'};
+
+params.initSaccadeLatencyEst = 0.2;
+params.targetDisplayLatency = params.initSaccadeLatencyEst - 0.1;
 
 stimuliScrn = Screen('OpenWindow', 0, params.bkgrndColour, [001 01 1600 900]);%
 [params.width, params.height]=Screen('WindowSize', stimuliScrn);%screen returns the size of the window
 params.midX = round(params.width/2);
 params.midY = round(params.height/2);
 
+params.blockLength = 16;
+
+% change font
+Screen('TextFont', stimuliScrn, 'Helvetica');
+Screen('TextSize', stimuliScrn, 30);
+Screen('TextColor', stimuliScrn, [255 255 255]);
+
+
 params.gaborAngles = [-pi/4, pi/4];
 
-doATrial(-1, params, stimuliScrn);
-doATrial(-1, params, stimuliScrn);
 
+if params.usePregenCs
+   load stimuli/c_.mat
+end
+
+fid = fopen(['results/' int2str(subjNum) '_results.txt'], 'w');
+fprintf(fid, 'person, block, trial, targetSide, respG, respC, c_angleT, c_angleI, c_angle_outer\n');
+
+blk=1;
+completedTrials = 0;
+trl = 0;
+%% Run a block
+while completedTrials < params.blockLength
+    [targSide, respG, respC, cAngles] = doATrial(-1, params, stimuliScrn, landoltC);
+    trl = trl + 1;
+    fprintf(fid, '%d %d %d %s %d %s %s %s %s\n', subjNum, blk, trl, targSide, respG, respC, cAngles.targetLabel, cAngles.innerLabel, cAngles.outerLabel);
+    completedTrials = completedTrials + respG;
+end
+clear trl completedTrials
 
 %% clean-up
+fclose(fid);
 sca
 
 end
 
-function doATrial(isSaccade, params, stimuliScrn)
+function [targSide, gaborCorrect, respC, cAngles] = doATrial(isSaccade, params, stimuliScrn, landoltC)
 %% a trial
 % isSaccade = 1 if it's a saccade trial, -1 if it is a fixation trial
 
@@ -58,36 +88,45 @@ end
 
 stim = params.bkgrndColour * ones(params.height, params.width, 3);
 
-% draw fix dot
-stim((params.midY-5):(params.midY+5),(params.midX-5):(params.midX+5), :) = 50;
 
-% draw boxes
-stim = drawAllBoxes(stim, params, isSaccade, targetSide);
-
-% make texture
-tex = Screen('MakeTexture', stimuliScrn, stim);
-% draw to screen
-Screen('DrawTexture', stimuliScrn, tex);
-% display!
-Screen(stimuliScrn, 'flip');
-WaitSecs(1);
-
+%% draw target frame
 % draw fixation target
 gaborLR = (rand<0.5)+1;
 g = GenGabor(params.boxN, params.gaborAngles(gaborLR));
 g = repmat(100*g + params.bkgrndColour, [1 1 3]);
 stim = drawItem2Box(stim, g, targetSide, 4, params);
+clear g
+
+tmp = randperm(4);
+cAngles.inner = params.Cphi(tmp(1));
+cAngles.innerLabel = params.CphiLabels{tmp(1)};
+cAngles.outer = params.Cphi(tmp(2));
+cAngles.outerLabel = params.CphiLabels{tmp(1)};
+cAngles.target = params.Cphi(tmp(3));
+cAngles.targetLabel = params.CphiLabels{tmp(3)};
 
 
-%% draw target frame
-letter = drawLandoltC(params.boxN, params.Cphi(4), params.flankerIntensity,  params);
-stim = drawItem2Box(stim, letter, -targetSide*isSaccade, 1, params);
-
-letter = drawLandoltC(params.boxN, params.Cphi(3), params.flankerIntensity,  params);
-stim = drawItem2Box(stim, letter, -targetSide*isSaccade, 3, params);
-
-letter = drawLandoltC(params.boxN, params.Cphi(2), params.targetIntensity,  params);
-stim = drawItem2Box(stim, letter, targetSide, 2, params);
+% draw letters
+if params.usePregenCs==1
+    letter = drawLandoltC(params.boxN, tmp(1), params.flankerIntensity,  params);
+    stim = drawItem2Box(stim, letter, -targetSide*isSaccade, 1, params);
+    
+    letter = drawLandoltC(params.boxN, tmp(2), params.flankerIntensity,  params);
+    stim = drawItem2Box(stim, letter, -targetSide*isSaccade, 3, params);
+    
+    letter = drawLandoltC(params.boxN, tmp(3), params.targetIntensity,  params);
+    stim = drawItem2Box(stim, letter, targetSide, 2, params);
+else
+    letter = drawLandoltC(params.boxN, cAngles.inner, params.flankerIntensity,  params);
+    stim = drawItem2Box(stim, letter, -targetSide*isSaccade, 1, params);
+    
+    letter = drawLandoltC(params.boxN, cAngles.outer, params.flankerIntensity,  params);
+    stim = drawItem2Box(stim, letter, -targetSide*isSaccade, 3, params);
+    
+    letter = drawLandoltC(params.boxN, cAngles.target, params.targetIntensity,  params);
+    stim = drawItem2Box(stim, letter, targetSide, 2, params);
+end
+clear tmp letter
 
 % draw boxes
 stim = drawAllBoxes(stim, params, isSaccade, targetSide);
@@ -95,26 +134,77 @@ stim = drawAllBoxes(stim, params, isSaccade, targetSide);
 % make texture
 targetFrame = Screen('MakeTexture', stimuliScrn, stim);
 
-
 %% now carry out trial
-% now apply dymanic white noise to target squares
-dynamicWhiteNoise(0.5, stim, isSaccade, targetSide, params, stimuliScrn);
+% draw fix dot
+stim((params.midY-5):(params.midY+5),(params.midX-5):(params.midX+5), :) = 50;
+% apply dymanic white noise to target squares
+whiteNoiseDur = 0.5*rand+0.75;
+dynamicWhiteNoise(whiteNoiseDur, stim, isSaccade, targetSide, params, stimuliScrn);
 
+% remove fixation dot to indicate a saccade should be made
+stim = params.bkgrndColour * ones(params.height, params.width, 3);
+t0 = GetSecs;
+% display white noise until target frame
+dynamicWhiteNoise(params.targetDisplayLatency, stim, isSaccade, targetSide, params, stimuliScrn);
 % draw to screen
 Screen('DrawTexture', stimuliScrn, targetFrame);
 % display!
 Screen(stimuliScrn, 'flip');
-WaitSecs(1);
+Screen('Close', targetFrame);
+WaitSecs(params.targDisplayTime);
 
-
+% display white noise again
 dynamicWhiteNoise(0.5, stim, isSaccade, targetSide, params, stimuliScrn);
 
 %% get response
+stim = params.bkgrndColour * ones(params.height, params.width, 3);
+tex = Screen('MakeTexture', stimuliScrn, stim);
+Screen('DrawTexture', stimuliScrn, tex);
+DrawFormattedText(stimuliScrn, 'Which way was the target tilted?', 'center', 'center');
+Screen(stimuliScrn, 'flip');
+Screen('clear', 'tex')
+WaitSecs(0.1);
+respG = getObserverInput('gabor');
 
+if (strcmp(respG, 'left') && (gaborLR == 1)) || (strcmp(respG, 'right') && (gaborLR == 2))
+    gaborCorrect = 1;
+    % trial was correct! now asking about crowding target
+    stim = params.bkgrndColour * ones(params.height, params.width, 3);
+    tex = Screen('MakeTexture', stimuliScrn, stim);
+    Screen('DrawTexture', stimuliScrn, tex);
+    Screen(stimuliScrn, 'flip');
+    WaitSecs(0.2);
+    Screen('clear', 'tex');
+    
+    stim = params.bkgrndColour * ones(params.height, params.width, 3);
+    tex = Screen('MakeTexture', stimuliScrn, stim);
+    Screen('DrawTexture', stimuliScrn, tex);
+    DrawFormattedText(stimuliScrn, 'Which way round was the C?', 'center', 'center');
+    Screen(stimuliScrn, 'flip');
+    Screen('clear', 'tex');
+    WaitSecs(0.1);
+    Screen('clear', 'tex')
+    respC = getObserverInput('landoltC');
+else
+    gaborCorrect = 0;
+    % Gabor query incorrect. Provide negative feedback
+    stim = 100 * ones(params.height, params.width, 3);
+    stim(:,:,1) = 175;
+    tex = Screen('MakeTexture', stimuliScrn, stim);
+    Screen('DrawTexture', stimuliScrn, tex);
+    DrawFormattedText(stimuliScrn, 'Sorry, that was incorrect', 'center', 'center');
+    Screen(stimuliScrn, 'flip');
+    WaitSecs(1);
+    Screen('clear', 'tex')
+    
+    respC = NaN;
+end
 
-[resp, responseKeyHit] = getObserverInput;
-% 
-% 
+if targetSide == -1
+    targSide = 'left';
+else
+    targSide = 'right';
+end
 
 end
 
@@ -131,14 +221,14 @@ while toc< duration
     stimNoise = drawAllBoxes(stimNoise, params, isSaccade, targetSide);
     % make texture
     tex = Screen('MakeTexture', stimuliScrn, stimNoise);
+    clear stimNoise;
     Screen('DrawTexture', stimuliScrn, tex);
     Screen(stimuliScrn, 'flip');
+    Screen('Close', tex);
     WaitSecs(0.001);
 end
 
-
 end
-
 
 function im = drawItem2Box(im, letter, side, box, params)
 if side == 1
