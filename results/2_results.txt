@@ -1,1 +1,1 @@
-person, block, trial, targetSide, respG, respC, c_angleT, c_angleI, c_angle_outer2 1 1 right 108 101 102 116 NaN90 0 270 
+person, block, trial, targetSide, respG, respC, c_angleT, c_angleI, c_angle_outer
