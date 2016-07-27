@@ -1,11 +1,13 @@
+options(digits=3)
+
 as.numeric.factor <- function(x) {as.numeric(levels(x))[x]}
 
 ProcessASC <- function(asc)
 {
 	fixDat =  data.frame(observer=numeric(), trial=numeric(), n=numeric(), x=numeric(), y=numeric(), dur=numeric())
 
-	trialStarts = grep("TRIAL_START[0-9]*", asc)
-	trialEnds   = grep("TRIAL_END[0-9]*", asc)
+	trialStarts = grep("start_trial", asc)
+	trialEnds   = grep("stimulus", asc)
 	nTrials = length(trialStarts)
 
 	for (t in 1:nTrials)
@@ -33,13 +35,14 @@ ProcessASC <- function(asc)
 	return(fixDat)
 } 
 
-people = c(1:12, 14:32)
-options(digits=3)
+people = c(99)
+
 fDat = data.frame(observer=numeric(), trial=numeric(), targLoc=numeric(), distLoc=numeric(), x=numeric(), y=numeric(), n=numeric())
+
 for (person in people)
 {
-print(person)
-	asc = readLines(paste("../results/objscn", person, ".asc", sep=""))
+	print(person)
+	asc = readLines(paste("../results/cwdrmp", person, ".asc", sep=""))
 	asc = strsplit(asc, "\t")
 	dat = ProcessASC(asc)
 	fDat = rbind(fDat, dat)
