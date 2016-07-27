@@ -1,1 +1,0 @@
-person, block, trial, targetSide, respG, respC, c_angleT, c_angleI, c_angle_outer

@@ -1,0 +1,9 @@
+function heldCentralGaze = Check4CentralGz(gzData)
+
+
+if mean(gzData(:,1))<60 && mean(gzData(:,2))<60 &&  ...
+        std(gzData(:,1))<60&&  std(gzData(:,2))<60
+    heldCentralGaze = true;
+else
+    heldCentralGaze = false;
+end
