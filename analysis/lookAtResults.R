@@ -4,8 +4,8 @@ library(binom)
 options(digits=2)
 
 
-dat = read.csv("../results/7_results.txt", sep = " ")
-names(dat) = c("person", "blockN", "block", "trial", "flanker", "targetSide", "respG", "respC", "targOri", "saccStart")
+dat = read.csv("../results/8_results.txt", sep = " ")
+names(dat) = c("person", "blockN", "block", "trial", "flanker", "targetSide", "respG", "respC", "targOri", "saccStart", "targOnTime", "targOffTime")
 dat$block = as.factor(dat$block)
 levels(dat$block)=c("saccade", "fixation")
 
@@ -17,12 +17,12 @@ aggregate(respG ~ flanker+block, dat, FUN="length")
 # remove trials with incorrect Gabor response
  dat = filter(dat, respG==1)
 
-#  change cross responses as this person answered them backwards!
-tmp = dat$respC
-dat$respC[which(tmp=="right")] = "left"
-dat$respC[which(tmp=="down")] = "up"
-dat$respC[which(tmp=="left")] = "right"
-dat$respC[which(tmp=="up")] = "down"
+ # change cross responses as this person answered them backwards!
+# tmp = dat$respC
+# dat$respC[which(tmp=="right")] = "left"
+# dat$respC[which(tmp=="down")] = "up"
+# dat$respC[which(tmp=="left")] = "right"
+# dat$respC[which(tmp=="up")] = "down"
 
 dat$respC = droplevels(dat$respC)
 dat$correct = as.numeric(as.character(dat$respC) == as.character(dat$targOri))
@@ -45,3 +45,4 @@ plt = plt + geom_point() + geom_errorbar() + facet_wrap(~block)
 plt = plt + scale_y_continuous(limits=c(0,1))
 plt = plt + theme_bw()
 plt
+ggsave("crowdingResults.pdf")

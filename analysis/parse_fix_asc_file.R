@@ -72,7 +72,7 @@ ProcessASC <- function(asc)
 	return(list(fixDat, timeDat))
 } 
 
-people = c(7)
+people = c(8)
 
 fDat = data.frame(observer=numeric(), trial=numeric(), targLoc=numeric(), distLoc=numeric(), x=numeric(), y=numeric(), n=numeric())
 tDat =  data.frame(observer=numeric(), trial=numeric(), times=numeric(), events=character())
