@@ -123,10 +123,11 @@ for (person in people)
 
 # the first 30 trials are practise - so remove!
 fDat = SortOutTrialNumbers(fDat)
-sDat = filter(sDat, trial>30)
-tDat = filter(tDat, trial>30)
+sDat = SortOutTrialNumbers(sDat)
+tDat = SortOutTrialNumbers(tDat)
 
 
 write.csv(fDat, "fixations.csv", row.names=F, quote=F)
 write.csv(sDat, "saccades.csv", row.names=F, quote=F)
 write.csv(tDat, "eventTimes.csv", row.names=F, quote=F)
+
