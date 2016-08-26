@@ -1,5 +1,7 @@
 library(dplyr)
 
+people = c(12)
+
 options(digits=3)
 pat = "[0-9]+"
 # boxCentres = c(1920/2,	1920/2 - 38 * c(1,2,3,4), 1920/2 + 38 * c(1,2,3,4))
@@ -12,8 +14,9 @@ ProcessASC <- function(asc)
 	fixDat =  data.frame(observer=numeric(), trial=numeric(), n=numeric(), x=numeric(), y=numeric(), dur=numeric())
 	saccDat = data.frame(observer=numeric(), trial=numeric(), n=numeric(), x1=numeric(), y1=numeric(),x2=numeric(), y2=numeric(),t1=numeric(), t2=numeric(), dur=numeric())
 	timeDat = data.frame(observer=numeric(), trial=numeric(), times=numeric(), events=character())
-	trialStarts = grep("start_trial", asc)
+	trialStarts = grep("start_trial_", asc)
 	trialEnds   = grep("stimulus", asc)
+	trialEnds = trialEnds[31:length(trialEnds)]
 	nTrials = length(trialStarts)
 
 	for (t in 1:nTrials)
@@ -95,8 +98,8 @@ ProcessASC <- function(asc)
 SortOutTrialNumbers <- function(dat)
 {
 # remove practise trials
-	dat = filter(dat, trial>30)
-	dat$trial = dat$trial - 30
+	# dat = filter(dat, trial>30)
+	# dat$trial = dat$trial - 30
 
 	dat$block = ceiling(dat$trial/48)
 	dat$trial = dat$trial %% 48
@@ -104,8 +107,6 @@ SortOutTrialNumbers <- function(dat)
 
 	return(dat)
 }
-
-people = c(1, 9,10, 11)
 
 fDat = data.frame(observer=numeric(), trial=numeric(), targLoc=numeric(), distLoc=numeric(), x=numeric(), y=numeric(), n=numeric())
 tDat =  data.frame(observer=numeric(), trial=numeric(), times=numeric(), events=character())
@@ -123,7 +124,7 @@ for (person in people)
 	rm(dat, asc)
 }
 
-# the first 30 trials are practise - so remove!
+# # the first 30 trials are practise - so remove!
 fDat = SortOutTrialNumbers(fDat)
 sDat = SortOutTrialNumbers(sDat)
 tDat = SortOutTrialNumbers(tDat)

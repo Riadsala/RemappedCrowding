@@ -3,7 +3,7 @@ library(ggplot2)
 library(binom)
 options(digits=2)
 
-people = c(1)
+people = c(13)
 dat = data.frame()
 for (person in people)
 {
@@ -30,9 +30,9 @@ dat$saccTimingFromTargOff = NaN
 dat$saccLat = NaN
 for (pp in levels(dat$person))
 {
-	for (tr in 1:45)
+	for (tr in 1:48)
 	{
-		for (blk in 1:16)
+		for (blk in 1:2)
 		{
 			trTimes = filter(tDat, person==pp, trial==tr, block==blk)
 			trSaccs = filter(sDat, person==pp, trial==tr, block==blk)
