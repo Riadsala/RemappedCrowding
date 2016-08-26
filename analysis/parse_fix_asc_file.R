@@ -1,4 +1,9 @@
+library(dplyr)
+
 options(digits=3)
+pat = "[0-9]+"
+# boxCentres = c(1920/2,	1920/2 - 38 * c(1,2,3,4), 1920/2 + 38 * c(1,2,3,4))
+boxCentres = c(1920/2,	1920/2 - 44 * 4, 1920/2 + 44 * 4)
 
 as.numeric.factor <- function(x) {as.numeric(levels(x))[x]}
 
@@ -24,7 +29,7 @@ ProcessASC <- function(asc)
 		if (length(fixationLines)>0)
 		{
 			fixations = as.data.frame(matrix(unlist(trial[fixationLines]), byrow=T, ncol=6))
-			pat = "[0-9]+"
+			
 			trialDat = data.frame(
 				observer=person, 
 				trial=t,				
@@ -83,9 +88,6 @@ ProcessASC <- function(asc)
 	
 	}
 
-	fDat$t[fDat$t==0]=36
-	sDat$t[sDat$t==0]=36
-	tDat$t[tDat$t==0]=36
 	
 	return(list(fixDat, timeDat, saccDat))
 } 
@@ -96,14 +98,14 @@ SortOutTrialNumbers <- function(dat)
 	dat = filter(dat, trial>30)
 	dat$trial = dat$trial - 30
 
-	dat$block = ceiling(dat$trial/36)
-	dat$trial = dat$trial %% 36
-	dat$trial[dat$trial==0] = 36
+	dat$block = ceiling(dat$trial/48)
+	dat$trial = dat$trial %% 48
+	dat$trial[dat$trial==0] = 48
 
 	return(dat)
 }
 
-people = c(9,10)
+people = c(1, 9,10, 11)
 
 fDat = data.frame(observer=numeric(), trial=numeric(), targLoc=numeric(), distLoc=numeric(), x=numeric(), y=numeric(), n=numeric())
 tDat =  data.frame(observer=numeric(), trial=numeric(), times=numeric(), events=character())
@@ -126,6 +128,24 @@ fDat = SortOutTrialNumbers(fDat)
 sDat = SortOutTrialNumbers(sDat)
 tDat = SortOutTrialNumbers(tDat)
 
+
+names(fDat)[1] = "person"
+names(sDat)[1] = "person"
+names(tDat)[1] = "person"
+
+# assign AOIs to saccade data
+
+sDat$aoi1 = NaN
+sDat$aoi2 = NaN
+for (ii in 1:nrow(sDat))
+{
+	for (b in 1:length(boxCentres))
+	{
+		# should probably be 19! 
+		sDat$aoi1[ii][which(abs(sDat$x1[ii] -boxCentres[b])<29)] = b-1
+		sDat$aoi2[ii][which(abs(sDat$x2[ii] -boxCentres[b])<29)] = b-1
+	}
+}
 
 write.csv(fDat, "fixations.csv", row.names=F, quote=F)
 write.csv(sDat, "saccades.csv", row.names=F, quote=F)
