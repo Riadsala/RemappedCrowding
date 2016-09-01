@@ -1,6 +1,6 @@
 library(dplyr)
 
-people = c(12)
+people = c(1)
 
 options(digits=3)
 pat = "[0-9]+"
@@ -15,8 +15,7 @@ ProcessASC <- function(asc)
 	saccDat = data.frame(observer=numeric(), trial=numeric(), n=numeric(), x1=numeric(), y1=numeric(),x2=numeric(), y2=numeric(),t1=numeric(), t2=numeric(), dur=numeric())
 	timeDat = data.frame(observer=numeric(), trial=numeric(), times=numeric(), events=character())
 	trialStarts = grep("start_trial_", asc)
-	trialEnds   = grep("stimulus", asc)
-	trialEnds = trialEnds[31:length(trialEnds)]
+	trialEnds   = grep("stimulus_", asc)
 	nTrials = length(trialStarts)
 
 	for (t in 1:nTrials)
@@ -101,9 +100,9 @@ SortOutTrialNumbers <- function(dat)
 	# dat = filter(dat, trial>30)
 	# dat$trial = dat$trial - 30
 
-	dat$block = ceiling(dat$trial/48)
-	dat$trial = dat$trial %% 48
-	dat$trial[dat$trial==0] = 48
+	dat$block = ceiling(dat$trial/40)
+	dat$trial = dat$trial %% 40
+	dat$trial[dat$trial==0] = 40
 
 	return(dat)
 }

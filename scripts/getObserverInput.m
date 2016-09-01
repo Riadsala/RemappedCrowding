@@ -25,16 +25,16 @@ while responseKeyHit == 0
     else
         if find(keyCode) == KbName('uparrow');
             responseKeyHit = 1;
-            resp = 'up';
+            resp = 'down';
         elseif find(keyCode) == KbName('rightarrow');
             responseKeyHit = 1;
-            resp = 'right';
+            resp = 'left';
         elseif find(keyCode) == KbName('downarrow');
             responseKeyHit = 1;
-            resp = 'down';
+            resp = 'up';
         elseif find(keyCode) == KbName('leftarrow');
             responseKeyHit = 1;
-            resp = 'left';
+            resp = 'right';
         else
             resp = 0;
             responseKeyHit = 0;

@@ -1,276 +1,130 @@
 function Experiment1
 
-
-%% TODO: save all event data in edf file
-%% finish setting everything else up
-
 addpath('scripts/');
 
+trialsPerCondition = 10; % so total trials = this x 4 x 2 x nBlocks
+nBlocks = 10;
 
-%% get subject number and randomise random seed
+% get subject number and randomise random seed
 subjNum = input('input subject number: ');
 RandStream('mt19937ar', 'Seed', subjNum);
 
+% open file for writing results
+fid = fopen(['results/' int2str(subjNum) '_results.txt'], 'w');
+fprintf(fid, 'person blockN blockType trial flankerSide targetSide respG respC targOri saccStart targDisplayLat dotRemoveTimeStamp targOnTimeStamp targOffTimeStamp\n');
 
-% this probably wants to be 0.05
-params.targDisplayTime = 0.05;
+% get parameters for experiment
+params = getParams;
 
-params.saccadeThresh = 100;
-
-params.bkgrndColour = 125;
-params.delta = 280;
-params.N = 64; %determines spacing between adjacent boxes
-params.w = 6;
-params.letterSpace = 15;
-
-params.flankerIntensity = 225;
-params.targetIntensity  = 225;
-
-params.boxW = 2;
-params.boxN = 48;
-params.boxColour = [50, 50, 50];
-params.tboxColourSacc = [175, 25, 50];
-params.tboxColourFix = [25, 50, 200];
-
-params.Cr1 = 12;
-params.Cr2 = 8;
-params.Cw = 8;
-params.Cphi = [0 90, 180, 270];
-params.CphiLabels = {'up', 'left','down', 'right'};
-
-params.initSaccadeLatencyEst = 0.2;
-params.targetDisplayLatency = params.initSaccadeLatencyEst - 0.1;
-
+%% Set-up stuff!
+% set up screen
 stimuliScrn = Screen('OpenWindow', 1, params.bkgrndColour);%
-[params.width, params.height]=Screen('WindowSize', stimuliScrn);%screen returns the size of the window
+[params.width, params.height]=Screen('WindowSize', stimuliScrn); %screen returns the size of the window
 params.midX = round(params.width/2);
 params.midY = round(params.height/2);
-
-params.chinrestDist = 550;
-
-
-params.noiseMaskStd = 50;
-
-
-
 % set up eyelink
 iLink.edfdatafilename = strcat('cwdrmp', int2str(subjNum), '.edf');
 iLink = InitEyeLink(iLink, stimuliScrn);
-
-params.blockLength = 10;
-
 % change font
 Screen('TextFont', stimuliScrn, 'Helvetica');
 Screen('TextSize', stimuliScrn, 30);
 Screen('TextColor', stimuliScrn, [255 255 255]);
 
-params.gaborAngles = [-pi/4, pi/4];
 
-% if params.usePregenCs
-%     load stimuli/c_.mat
-% end
-
-fid = fopen(['results/' int2str(subjNum) '_results.txt'], 'w');
-fprintf(fid, 'person, block, trial, targetSide, respG, respC, c_angleT, c_angleI, c_angle_outer, saccStart\n');
-
-blk=1;
-completedTrials = 0;
-trl = 0;
-%% Run a block
-saccStartTimes = [];
-while completedTrials < params.blockLength
-    
-    [targSide, respG, respC, cAngles saccStart] = doATrial(-1, params, stimuliScrn, iLink);
-    
-    if isfinite(saccStart)
-        saccStartTimes = [saccStartTimes, saccStart];
-        params.targetDisplayLatency = median(saccStartTimes)-0.1;
+%% some information and practise
+RunIntro(params, iLink, stimuliScrn);
+% now do some practise trials
+nPrac = 10;
+for pp = 1:nPrac
+    doATrialP(0, params, 'none', stimuliScrn, iLink)
+end
+for pp = 1:nPrac
+    if rand<0.5
+        flankerCond = 'inner';
+    else
+        flankerCond = 'outer';
     end
+    doATrialP(0, params, flankerCond, stimuliScrn, iLink)
+end
+%  practise eye movements
+DisplayMessage('We will now practise making eye movements to the target square. Enjoy', params, stimuliScrn);
+WaitSecs(1)
+KbWait;
+for pp = 1:nPrac
+    doATrialE(1, params, 'none', stimuliScrn, iLink);
+end
+%         
+
+%% RUN BLOCKS
+blocks = repmat([1,2], [1,nBlocks]);
+blkN = 0;
+for blk = blocks
+    blkN = blkN+1;
     
-    trl = trl + 1;
-    fprintf(fid, '%d %d %d %s %d %s %s %s %s %f\n', subjNum, blk, trl, targSide, respG, respC, cAngles.targetLabel, cAngles.innerLabel, cAngles.outerLabel, saccStart);
-    completedTrials = completedTrials + respG;
+    % calibrate eyetracker
+    EyelinkDoTrackerSetup(iLink.el);
+    
+    %% introduce and initalise block
+    stim = 50 * ones(params.height, params.width, 3);
+    stim(:,:,2) = 100;
+    tex = Screen('MakeTexture', stimuliScrn, stim);
+    Screen('DrawTexture', stimuliScrn, tex);
+    
+    % display block intro message
+     if blk == 1
+        DrawFormattedText(stimuliScrn, strcat(int2str(blkN), ...
+            ': Block condition: please fixate the target when dot vanishes'), 'center', 'center');
+    else
+        DrawFormattedText(stimuliScrn, strcat(int2str(blkN), ...
+            ': Block condition: please keep fixating the fixation dot'), 'center', 'center');
+    end
+    Screen(stimuliScrn, 'flip');
+    Screen('Close', tex);
+    WaitSecs(1);
+    KbWait;
+ 
+    % create list of flanker conditions for each trial
+    flankerCond = repmat({'both', 'inner', 'outer', 'none'}, [1, trialsPerCondition]);
+    flankerCond = flankerCond(randperm(length(flankerCond)));
+    
+    % create empty arry of saccadic start times for this block
+    saccStartTimes = [];
+    
+    %% Run a block
+    for trl = 1:length(flankerCond)
+        
+        % run a trial
+        [targSide, respG, respC, targOri, saccStart, t_dotRemove, t_targOn, t_targOff] = ...
+            doATrial(blk, trl, params, flankerCond{trl}, stimuliScrn, iLink);
+        
+        % save trial data
+        fprintf(fid, '%d %d %d %d %s %s %d %s %s %f %f %f %f %f\n', ...
+            subjNum, blkN, blk, trl, flankerCond{trl}, targSide, respG, respC, targOri, saccStart, params.targetDisplayLatency, t_dotRemove, t_targOn, t_targOff);
+        
+        % update estimate of saccadic latency based on trial
+        if isfinite(saccStart)
+            saccStartTimes = [saccStartTimes, saccStart]; %#ok<AGROW>
+            params.targetDisplayLatency = max(0.02, median(saccStartTimes)-0.1);
+        end
+    end
 end
 
-clear trl completedTrials
+%% Display Thank-you message and end experiment
+stim = 50 * ones(params.height, params.width, 3);
+tex = Screen('MakeTexture', stimuliScrn, stim);
+Screen('DrawTexture', stimuliScrn, tex);
+DrawFormattedText(stimuliScrn, 'Thank you for your time!', 'center', 'center');
+Screen(stimuliScrn, 'flip');
+Screen('Close', tex);
+WaitSecs(5);
 
 %% clean-up
+Eyelink('ReceiveFile',[iLink.edfdatafilename]);
 fclose(fid);
 Eyelink('Shutdown')
 sca
 
 end
 
-function [targSide, gaborCorrect, respC, cAngles, saccLat] = doATrial(isSaccade, params, stimuliScrn, landoltC, iLink)
-%% a trial
-% isSaccade = 1 if it's a saccade trial, -1 if it is a fixation trial
 
-% randomly decide which side the target will be on
-if rand<0.5
-    targetSide = -1;
-else
-    targetSide = 1;
-end
-
-if targetSide == -1
-    targSide = 'left';
-else
-    targSide = 'right';
-end
-
-stim = params.bkgrndColour * ones(params.height, params.width, 3);
-
-
-%% draw target frame
-% draw fixation target
-gaborLR = (rand<0.5)+1;
-g = GenGabor(params.boxN, params.gaborAngles(gaborLR));
-g = repmat(150*g + params.bkgrndColour, [1 1 3]);
-stim = drawItem2Box(stim, g, targetSide, 4, params);
-clear g
-
-tmp = randperm(4);
-cAngles.inner = params.Cphi(tmp(1));
-cAngles.innerLabel = params.CphiLabels{tmp(1)};
-cAngles.outer = params.Cphi(tmp(2));
-cAngles.outerLabel = params.CphiLabels{tmp(1)};
-cAngles.target = params.Cphi(tmp(3));
-cAngles.targetLabel = params.CphiLabels{tmp(3)};
-
-% draw letters
-if params.usePregenCs==1
-    letter = landoltC{tmp(1)};
-    stim = drawItem2Box(stim, letter, -targetSide*isSaccade, 1, params);
-    
-    letter = landoltC{tmp(2)};
-    stim = drawItem2Box(stim, letter, -targetSide*isSaccade, 3, params);
-    
-    letter = landoltC{tmp(3)};
-    stim = drawItem2Box(stim, letter, targetSide, 2, params);
-else
-    letter = drawLandoltC(params.boxN, cAngles.inner, params.flankerIntensity,  params);
-    stim = drawItem2Box(stim, letter, -targetSide*isSaccade, 1, params);
-    
-    letter = drawLandoltC(params.boxN, cAngles.outer, params.flankerIntensity,  params);
-    stim = drawItem2Box(stim, letter, -targetSide*isSaccade, 3, params);
-    
-    letter = drawLandoltC(params.boxN, cAngles.target, params.targetIntensity,  params);
-    stim = drawItem2Box(stim, letter, targetSide, 2, params);
-end
-clear tmp letter
-
-% draw boxes
-stim = drawAllBoxes(stim, params, isSaccade, targetSide);
-
-% make texture
-targetFrame = Screen('MakeTexture', stimuliScrn, stim);
-
-%% now carry out trial
-% draw fix dot
-stim((params.midY-5):(params.midY+5),(params.midX-5):(params.midX+5), :) = 50;
-
-
-trialStartTime = GetSecs;
-% apply dymanic white noise to target squares
-whiteNoiseDur = 0.5*rand+0.75;
-gzData = dynamicWhiteNoise(whiteNoiseDur, stim, isSaccade, targetSide, params, stimuliScrn, iLink);
-
-% check that gaze was on central point, otherwise reject
-if Check4CentralGz(gzData)
-    % gaze was central, so carry on...
-    failedCentral = 0;
-    % remove fixation dot to indicate a saccade should be made
-    stim = params.bkgrndColour * ones(params.height, params.width, 3);
-    tStart = GetSecs;
-    
-    % display white noise until target frame
-    gzData1 = dynamicWhiteNoise(params.targetDisplayLatency, stim, isSaccade, targetSide, params, stimuliScrn, iLink);
-    gzData1(:,4) = 1;
-    
-    
-    t0 = GetSecs;
-    % Display Target Frame!!!
-    Screen('DrawTexture', stimuliScrn, targetFrame);
-    % display!
-    Screen(stimuliScrn, 'flip');
-    Screen('Close', targetFrame);
-    gzData2 = [];
-    while GetSecs-t0 < params.targDisplayTime
-        
-        evt = Eyelink('NewestFloatSample');
-        x = round(max(evt.gx)) - params.midX;
-        y = round(max(evt.gy)) - params.midY;
-        t = GetSecs;
-        gzData2 = [gzData2; x y t, 2];
-        clear x y t
-        WaitSecs(0.01);
-    end
-    
-    % display white noise again
-    gzData3 = dynamicWhiteNoise(0.5, stim, isSaccade, targetSide, params, stimuliScrn, iLink);
-    gzData3(:,4) = 3;
-    gz = [gzData1; gzData2; gzData3];
-    gz(:,3) = gz(:,3) - trialStartTime;
-    
-    [gazeOK saccLat]  = checkGz(gz, targetSide, params);
-    
-else
-    failedCentral = 1;
-    saccLat = NaN;
-end
-
-if ~failedCentral && gazeOK
-    
-    %% get response
-    stim = params.bkgrndColour * ones(params.height, params.width, 3);
-    tex = Screen('MakeTexture', stimuliScrn, stim);
-    Screen('DrawTexture', stimuliScrn, tex);
-    DrawFormattedText(stimuliScrn, 'Which way was the target tilted?', 'center', 'center');
-    Screen(stimuliScrn, 'flip');
-    Screen('clear', 'tex')
-    WaitSecs(0.1);
-    respG = getObserverInput('gabor');
-    
-    if (strcmp(respG, 'left') && (gaborLR == 1)) || (strcmp(respG, 'right') && (gaborLR == 2))
-        gaborCorrect = 1;
-    else
-        gaborCorrect = 0;
-    end
-    % trial was correct! now asking about crowding target
-    stim = params.bkgrndColour * ones(params.height, params.width, 3);
-    tex = Screen('MakeTexture', stimuliScrn, stim);
-    Screen('DrawTexture', stimuliScrn, tex);
-    Screen(stimuliScrn, 'flip');
-    WaitSecs(0.2);
-    Screen('clear', 'tex');
-    
-    stim = 50 * ones(params.height, params.width, 3);
-    stim(:,:,2) = 175;
-    tex = Screen('MakeTexture', stimuliScrn, stim);
-    Screen('DrawTexture', stimuliScrn, tex);
-    DrawFormattedText(stimuliScrn, 'Which way round was the cross?', 'center', 'center');
-    Screen(stimuliScrn, 'flip');
-    Screen('clear', 'tex');
-    WaitSecs(0.1);
-    Screen('clear', 'tex')
-    respC = getObserverInput('landoltC');  
-else
-    stim = 50 * ones(params.height, params.width, 3);
-    stim(:,:,1) = 175;
-    tex = Screen('MakeTexture', stimuliScrn, stim);
-    Screen('DrawTexture', stimuliScrn, tex);
-    if failedCentral
-        DrawFormattedText(stimuliScrn, 'Please mantain central fixation', 'center', 'center');
-    else
-        DrawFormattedText(stimuliScrn, 'Please move your eyes to the target', 'center', 'center');
-    end
-    Screen(stimuliScrn, 'flip');
-    WaitSecs(1);
-    Screen('clear', 'tex')
-    
-    gaborCorrect = 0;
-    respC = NaN;
-end
-
-end
 

@@ -17,7 +17,7 @@ end
 % draw fixation target
 gaborLR = (rand<0.5)+1;
 g = GenGabor(params.boxN, params.gaborAngles(gaborLR));
-g = repmat(200*g + params.bkgrndColour, [1 1 3]);
+g = repmat(250*g + params.bkgrndColour, [1 1 3]);
 stim = drawItem2Box(stim, g, targetSide, 4, params);
 clear g
 
@@ -28,6 +28,9 @@ if isSaccade == 1
         stim = drawItem2Box(stim, letter, -targetSide, 3, params);
     elseif strcmp(flankerCond, 'outer')
         stim = drawItem2Box(stim, letter, -targetSide, 1, params);
+    elseif strcmp(flankerCond, 'both')
+        stim = drawItem2Box(stim, letter, -targetSide, 3, params);
+        stim = drawItem2Box(stim, letter, -targetSide, 1, params);
     else
 %         leave blank
     end
@@ -36,6 +39,9 @@ else
         stim = drawItem2Box(stim, letter, targetSide, 1, params);
     elseif strcmp(flankerCond, 'outer')
         stim = drawItem2Box(stim, letter, targetSide, 3, params);
+    elseif strcmp(flankerCond, 'both')
+        stim = drawItem2Box(stim, letter, targetSide, 1, params);
+         stim = drawItem2Box(stim, letter, targetSide, 3, params);
     else
 %         leave blank
     end

@@ -1,4 +1,4 @@
-function [gazeOk saccadeLat] = checkGz(gz, targetSide, params);
+function [gazeOk saccadeLat] = checkGz(gz, targetSide, params)
 
 % get centre of target (x) position
 if targetSide == 1
@@ -8,14 +8,14 @@ else
 end
 
 
-lookingAtCentre = abs(gz(:,1)) < 100;
-lookingAtTarget = 2*(abs((gz(:,1) - targetX)) < 100);
+lookingAtCentre = abs(gz(:,1)) < 60;
+lookingAtTarget = 2*(abs((gz(:,1) - targetX)) < 24);
 
 aoi = [max(lookingAtCentre, lookingAtTarget) gz(:,3)];
 
 if aoi(1,1) == 1 && aoi(end,1) == 2
     gazeOk = true;
-    saccadeLat = max(aoi(aoi==1,2)) - aoi(1,2);
+    saccadeLat = min(aoi(aoi(:,1)~=1,2)) - aoi(1,2);
 else
     gazeOk = false;
     saccadeLat = NaN;

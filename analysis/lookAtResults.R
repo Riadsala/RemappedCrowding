@@ -1,9 +1,9 @@
 library(dplyr)
 library(ggplot2)
 library(binom)
-options(digits=2)
+options(digits=4)
 
-people = c(13)
+people = c(1)
 dat = data.frame()
 for (person in people)
 {
@@ -11,10 +11,12 @@ for (person in people)
 	dat = rbind(dat, pdat)
 }
 
-names(dat) = c("person", "blockN", "block", "trial", "flanker", "targetSide", "respG", "respC", "targOri", "saccStart", "targOnTime", "targOffTime")
+names(dat) = c("person", "blockN", "block", "trial", "flanker", "targetSide", "respG", "respC", "targOri", "saccStart", "targDelay", "dotRemove", "targOnTime", "targOffTime")
 dat$block = as.factor(dat$block)
 levels(dat$block)=c("saccade", "fixation")
 dat$person = as.factor(dat$person)
+dat$flanker = factor(dat$flanker, levels(dat$flanker)[c(3,2,4,1)])
+
 
 sDat = read.csv("saccades.csv")
 # only keep valid saccades (from centre to a target box)
@@ -30,9 +32,9 @@ dat$saccTimingFromTargOff = NaN
 dat$saccLat = NaN
 for (pp in levels(dat$person))
 {
-	for (tr in 1:48)
+	for (tr in 1:40)
 	{
-		for (blk in 1:2)
+		for (blk in 1:20)
 		{
 			trTimes = filter(tDat, person==pp, trial==tr, block==blk)
 			trSaccs = filter(sDat, person==pp, trial==tr, block==blk)
@@ -44,35 +46,34 @@ for (pp in levels(dat$person))
 				nrow(trSaccs)==0)
 			{
 				dat$okSacc[idx] = 1
+				dat$saccTimingOk[idx] = 1
 			}
 			if (dat$block[idx] == "saccade" &
 				nrow(trSaccs)>0)
 			{
-				dat$okSacc[idx] = 1
-			}
+				dat$okSacc[idx] = 1			
 
-			# check if a saccade was recorded between dotRemoved and targOff
-			if (nrow(trSaccs)>0)
-			{
-
-				dotRemove = filter(trTimes, events=="dotRemoved")$times
-				targOff   = filter(trTimes, events=="targOff")$times
-				targOn   = filter(trTimes, events=="targOn")$times
-
-				if (length(dotRemove)>0)
+				# check if a saccade was recorded between dotRemoved and targOff
+				if (nrow(trSaccs)>0)
 				{
-					saccTooEarly = (trSaccs$t1 >dotRemove) & (trSaccs$t1 < targOff)
-					dat$saccLat[idx] = trSaccs$t1 - dotRemove
 
+					dotRemove = filter(trTimes, events=="dotRemoved")$times
+					targOff   = filter(trTimes, events=="targOff")$times
+					targOn   = filter(trTimes, events=="targOn")$times
 
-					
-					if (sum( saccTooEarly)==0)
+					if (length(dotRemove)>0)
 					{
-						dat$saccTimingOk[idx] = 1
-							
-					}
-					dat$saccTimingFromTargOff[idx] =  trSaccs$t1 - targOn
+						saccTooEarly = (trSaccs$t1 >dotRemove) & (trSaccs$t1 < targOff)
+						dat$saccLat[idx] = trSaccs$t1 - dotRemove
+		
+						if (sum( saccTooEarly)==0)
+						{
+							dat$saccTimingOk[idx] = 1
+								
+						}
+						dat$saccTimingFromTargOff[idx] =  trSaccs$t1 - targOff
 
+					}
 				}
 			}
 		}
@@ -81,20 +82,29 @@ for (pp in levels(dat$person))
 
  dat$saccTimingOk[dat$block=="fixation" & dat$okSacc==1] = 1
 
-dat$flanker = factor(dat$flanker, levels(dat$flanker)[c(3,2,4,1)])
 
+# number of trials in which data was collected
+aggregate(respG ~ flanker+block+person, dat, FUN="length")
+# gabor response rates
 aggregate(respG ~ flanker+block+person, dat, FUN="mean")
-aggregate(respG ~ flanker+block+person, filter(dat, respG==1), FUN="length")
+aggregate(respG ~ flanker+block+person, dat, FUN="sum")
 
-dat$valid = dat$saccTimingOk & dat$respG
-aggregate(valid ~ flanker+block+person, dat, FUN="sum")
+# take only trials with a valid gabor response
+dat = filter(dat, respG==1)
 
+aggregate(data=dat, okSacc ~ flanker+block, FUN="sum")
+
+dat = filter(dat, okSacc==1)
+dat$saccTimingOk[dat$block=="fixation"] = 1
+
+aggregate(data=dat, saccTimingOk ~ flanker+block, FUN="sum")
+dat = filter(dat, saccTimingOk==1)
 
 dat$respC = droplevels(dat$respC)
 dat$correct = as.numeric(as.character(dat$respC) == as.character(dat$targOri))
 
 
-aggDat = (filter(dat, respG==1,  saccTimingOk==1, person==11) %>% 
+aggDat = (dat %>% 
 	group_by(person, block, flanker) 
 		%>% summarise(
 			propCorrect= mean(correct),
