@@ -16,24 +16,21 @@ end
 t_targOn  = 0;
 t_targOff = 0;
 
-%% create target frame
-[stim gaborLR targOri] = createTargetFrame(params, targetSide, isSaccade, flankerCond);
+%% create target frame and noise frames
 
-% pre-gen some noise frames
+[stim, gaborLR, targOri] = createTargetFrame(params, targetSide, isSaccade, flankerCond);
+targetFrame = Screen('MakeTexture', stimuliScrn, stim);
+
 pregennoise = GenerateNoiseFrames(params, targetSide, isSaccade, stimuliScrn);
 
-% make texture
-targetFrame = Screen('MakeTexture', stimuliScrn, stim);
-singleNoiseFrame;
+
 %% now carry out trial
 Eyelink('StartRecording')
-% draw fix dot
 
+% draw fix dot
 stim = params.bkgrndColour * ones(params.height, params.width, 3);
 stim((params.midY-5):(params.midY+5),(params.midX-5):(params.midX+5), :) = 50;
 tex = Screen('MakeTexture', stimuliScrn, stim);
-
-
 Screen('DrawTexture', stimuliScrn, tex);
 Screen(stimuliScrn, 'flip');
 Screen('Close', tex);
@@ -52,47 +49,45 @@ if Check4CentralGz(gzData)
     % gaze was central, so carry on...
     failedCentral = 0;
     
-    if isSaccade == 1
-        % remove fixation dot to indicate a saccade should be made
-        stim = params.bkgrndColour * ones(params.height, params.width, 3);
-    else
-        % keep displaying fixation dot
-        stim((params.midY-5):(params.midY+5),(params.midX-5):(params.midX+5), :) = 50;
-    end
+      
+    % remove dot and display white noise until target frame
     t_dotRemove = GetSecs - trialStartTime;
-    Eyelink('message', 'remove_dot');
-    
-    % display white noise until target frame
+    Eyelink('message', 'remove_dot');  
     if isSaccade == 1
-    gzData1 = dynamicWhiteNoise(params.targetDisplayLatency, pregennoise.nodot, params, stimuliScrn);
+        gzData1 = dynamicWhiteNoise(params.targetDisplayLatency, pregennoise.nodot, params, stimuliScrn);
     else
         gzData1 = dynamicWhiteNoise(params.targetDisplayLatency, pregennoise.dot, params, stimuliScrn);
     end
+    % Code time-period to 1 = dotRemoved, targ not up yet
     gzData1(:,4) = 1;
+    
     % Display Target Frame!!!
     Screen('DrawTexture', stimuliScrn, targetFrame);
-    Eyelink('message', 'target_on');
-    t0 = GetSecs;  
-    t_targOn = Screen(stimuliScrn, 'flip') - trialStartTime;%
+    Eyelink('message', 'target_on'); 
+    t_targOn = Screen(stimuliScrn, 'flip') - trialStartTime;
         
     % display target while collecting gaze data
     gzData2 = [];
-    while GetSecs-t0 < (params.targDisplayTime)
-        evt = Eyelink('NewestFloatSample');
-        x = round(max(evt.gx)) - params.midX;
-        y = round(max(evt.gy)) - params.midY;
-        t = GetSecs;
-        gzData2 = [gzData2; x y t, 2];
-        clear x y t
+    while GetSecs-t_targOn < (params.targDisplayTime)
+        if Eyelink('NewFloatSampleAvailable')
+            evt = Eyelink('NewestFloatSample');
+            x = round(max(evt.gx)) - params.midX;
+            y = round(max(evt.gy)) - params.midY;
+            t = GetSecs;
+            gzData2 = [gzData2; x y t, 2]; %#ok<AGROW>
+            clear x y t
+        end
         WaitSecs(0.001);
     end
-    
-    Screen('DrawTexture', stimuliScrn, texN);
+    Eyelink('message', 'target_off');
+    if isSaccade == 1
+        Screen('DrawTexture', stimuliScrn, pregennoise.nodot(randi(10)).tex);
+    else
+        Screen('DrawTexture', stimuliScrn, pregennoise.dot(randi(10)).tex);
+    end
     t_targOff = Screen(stimuliScrn, 'flip') - trialStartTime;
     Screen('Close', texN);
-    WaitSecs(0.001);
     
-    Eyelink('message', 'target_off');
     % display white noise again
     if isSaccade == 1
         gzData3 = dynamicWhiteNoise(0.5, pregennoise.nodot,  params, stimuliScrn);
@@ -103,12 +98,14 @@ if Check4CentralGz(gzData)
     Eyelink('message', ['stimulus_end_', int2str(tctr)]);
     Eyelink('Stoprecording');
     
+    % group gaze samples from each period together
     gz = [gzData1; gzData2; gzData3];
     gz(:,3) = gz(:,3) - trialStartTime;
     
+    % now check if a valid fixation/saccade was made
     if isSaccade == 1
         % in SACCADE condition, so check observer fixated target
-        [gazeOK saccLat]  = checkGz(gz, targetSide, params);
+        [gazeOK, saccLat]  = checkGz(gz, targetSide, params);
     else
         % in NO SACCADE condition, check central fixation was mantained
         gazeOK = Check4CentralGz(gz);
@@ -128,8 +125,7 @@ end
 if ~failedCentral && gazeOK
     
     %% Trial was ok, so get responses!
-    DisplayMessage('Which way was the target tilted?', params, stimuliScrn);
-    
+    DisplayMessage('Which way was the target tilted?', params, stimuliScrn); 
     respG = getObserverInput('gabor');
     
     if (strcmp(respG, 'left') && (gaborLR == 1)) || (strcmp(respG, 'right') && (gaborLR == 2))
@@ -142,18 +138,19 @@ if ~failedCentral && gazeOK
     tex = Screen('MakeTexture', stimuliScrn, stim);
     Screen('DrawTexture', stimuliScrn, tex);
     Screen(stimuliScrn, 'flip');
-    WaitSecs(0.25);
+    WaitSecs(0.20);
     Screen('Close', tex);
     
     % trial was correct! now asking about crowding target
     DisplayMessage('Which way round was the cross?', params, stimuliScrn);
     
     respC = getObserverInput('cross');
+    
     stim = params.bkgrndColour * ones(params.height, params.width, 3);
     tex = Screen('MakeTexture', stimuliScrn, stim);
     Screen('DrawTexture', stimuliScrn, tex);
     Screen(stimuliScrn, 'flip');
-    WaitSecs(0.25);
+    WaitSecs(0.20);
     Screen('Close', tex);
     
 else
@@ -176,6 +173,9 @@ else
     
     gaborCorrect = NaN;
     respC = NaN;
+    saccLat = NaN;
 end
+
+% clear pregen-noise textures
 ClearNoiseTextures(pregennoise)
 end

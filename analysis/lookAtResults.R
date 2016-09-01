@@ -3,7 +3,7 @@ library(ggplot2)
 library(binom)
 options(digits=4)
 
-people = c(1)
+people = c(1,2)
 dat = data.frame()
 for (person in people)
 {

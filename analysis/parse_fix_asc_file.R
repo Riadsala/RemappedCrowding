@@ -1,6 +1,6 @@
 library(dplyr)
 
-people = c(1)
+people = c(1,2)
 
 options(digits=3)
 pat = "[0-9]+"

@@ -1,7 +1,5 @@
 function [stim gaborLR targOri] = createTargetFrame(params, targetSide, isSaccade, flankerCond)
 
-
-
 stim = params.bkgrndColour * ones(params.height, params.width, 3);
 
 %% create target frame
@@ -59,3 +57,79 @@ stim = drawAllBoxes(stim, params, isSaccade, targetSide);
 
 
 clear tmp letter
+
+end
+
+function c = drawCross(n, col, offset, params)
+% n = dimension of output element
+% w = width 
+w = params.w;
+c = params.bkgrndColour * ones(n,n);
+c((round((n-1)/2-w/2):round(n/2+w/2))+offset, :) = col;
+c(:, round((n-1)/2-w/2):round(n/2+w/2)) = col;
+
+% c = imrotate(c, phi, 'nearest', 'crop');
+% c = imfilter(c, fspecial('gaussian', 5, 1), 'replicate');
+c = repmat(c, [1 1 3]);
+end
+
+function c = drawLandoltC(n, phi, col, params)
+% n = dimension of output element
+% r1 = outer radius
+% r2 = inner radius
+% w = width of cut-out
+% phi = angle of cut-out
+x = repmat((-n/2+1):(n/2), [n,1]);
+d = x.^2 + x'.^2;
+c = (d<params.Cr1^2) .* (d>params.Cr2^2);
+c(1:(n/2), (n/2-params.Cw/2):(n/2+params.Cw/2)) = 0;
+c(c==0) = params.bkgrndColour;
+c(c==1) = col;
+
+c = imrotate(c, phi, 'nearest', 'crop');
+c = imfilter(c, fspecial('gaussian', 5, 1), 'replicate');
+c = repmat(c, [1 1 3]);
+end
+
+function g = GenGabor(n, theta)
+x = repmat(1:n, [n,1])-round(n/2);
+y = x';
+
+lambda =7;
+
+phi = 0;
+sigma = 4;
+psi = 1;
+
+x1 =  x.*cos(theta) + y.*sin(theta);
+y1 = -x.*sin(theta) + y.*cos(theta);
+
+z1 = x1.^2 + (psi.^2).*(y1.^2);
+z2 = 2*pi*(x1./lambda) + phi;
+
+g = exp(-(z1)./(2*sigma.^2)) .* cos(z2);
+g  = 0.5*g./max(abs(g(:)));
+end
+
+function [targOri, letter] = rotateTarget(letter)
+r = randi(4);
+switch r
+    case 1
+        targOri = 'up';
+    case 2
+        targOri = 'left';
+        for d = 1:3
+            letter(:,:,d) = letter(:,:,d)';
+        end
+    case 3
+        targOri = 'down';
+        for d = 1:3
+            letter(:,:,d) = letter(end:-1:1,:,d);
+        end
+    case 4
+        targOri = 'right';
+        for d = 1:3
+            letter(:,:,d) = letter(end:-1:1,:,d)';
+        end
+end
+end
