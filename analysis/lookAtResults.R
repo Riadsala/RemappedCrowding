@@ -92,7 +92,7 @@ aggregate(respG ~ flanker+block+person, dat, FUN="sum")
 # take only trials with a valid gabor response
 dat = filter(dat, respG==1)
 
-aggregate(data=dat, okSacc ~ flanker+block, FUN="sum")
+aggregate(data=dat, okSacc ~ flanker+block+person, FUN="sum")
 
 dat = filter(dat, okSacc==1)
 dat$saccTimingOk[dat$block=="fixation"] = 1
