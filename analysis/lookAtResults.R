@@ -3,7 +3,7 @@ library(ggplot2)
 library(binom)
 options(digits=4)
 
-people = c(1,2)
+people = c(1,2,3)
 dat = data.frame()
 for (person in people)
 {
@@ -85,19 +85,33 @@ for (pp in levels(dat$person))
 
 # number of trials in which data was collected
 aggregate(respG ~ flanker+block+person, dat, FUN="length")
+plt = ggplot(aggregate(respG ~ block+person, dat, FUN="length"), aes(x=block, y=respG, fill=person))
+plt = plt + geom_bar(position=position_dodge(), stat="identity")
+plt = plt + scale_y_continuous(name="num. trials completed")
+ggsave("../plots/1_nTrialsCompleted.pdf")
+
 # gabor response rates
 aggregate(respG ~ flanker+block+person, dat, FUN="mean")
-aggregate(respG ~ flanker+block+person, dat, FUN="sum")
+plt = ggplot(aggregate(respG ~ block+person, dat, FUN="mean"), aes(x=block, y=respG, fill=person))
+plt = plt + geom_bar(position=position_dodge(), stat="identity")
+plt = plt + scale_y_continuous(name="accuracy at Gabor discrimination")
+ggsave("../plots/2_gaborAcc.pdf")
 
 # take only trials with a valid gabor response
 dat = filter(dat, respG==1)
 
-aggregate(data=dat, okSacc ~ flanker+block+person, FUN="sum")
 
 dat = filter(dat, okSacc==1)
 dat$saccTimingOk[dat$block=="fixation"] = 1
 
 aggregate(data=dat, saccTimingOk ~ flanker+block, FUN="sum")
+plt = ggplot(aggregate(saccTimingOk ~ block+person, dat, FUN="sum"), aes(x=block, y=saccTimingOk, fill=person))
+plt = plt + geom_bar(position=position_dodge(), stat="identity")
+plt = plt + scale_y_continuous(name="number of trials w/ valid saccade onset")
+ggsave("../plots/3_nTrialsSaccOK.pdf")
+
+
+
 dat = filter(dat, saccTimingOk==1)
 
 dat$respC = droplevels(dat$respC)
@@ -122,7 +136,7 @@ plt = plt + scale_y_continuous(limits=c(0,1))
 plt = plt + theme_bw()
 
 plt
-ggsave("crowdingResults.pdf")
+ggsave("../plots/crowdingResults.pdf")
 
 
 # plt = ggplot(filter(dat, block=="saccade", blockN==1), aes(x=trial, y=saccStart, colour=blockN))
