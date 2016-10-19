@@ -111,7 +111,6 @@ plt = plt + scale_y_continuous(name="number of trials w/ valid saccade onset")
 ggsave("../plots/3_nTrialsSaccOK.pdf")
 
 
-
 dat = filter(dat, saccTimingOk==1)
 
 dat$respC = droplevels(dat$respC)
@@ -136,7 +135,7 @@ plt = plt + scale_y_continuous(limits=c(0,1))
 plt = plt + theme_bw()
 
 plt
-ggsave("../plots/crowdingResults.pdf")
+ggsave("../plots/4_crowdingResults.pdf")
 
 
 # plt = ggplot(filter(dat, block=="saccade", blockN==1), aes(x=trial, y=saccStart, colour=blockN))

@@ -1,6 +1,6 @@
 library(dplyr)
 
-people = c(1,2)
+people = c(1,2,3)
 
 options(digits=3)
 pat = "[0-9]+"
@@ -16,6 +16,9 @@ ProcessASC <- function(asc)
 	timeDat = data.frame(observer=numeric(), trial=numeric(), times=numeric(), events=character())
 	trialStarts = grep("start_trial_", asc)
 	trialEnds   = grep("stimulus_", asc)
+	# correction for some unwanted (practise) trial end markers.
+	trialEnds = trialEnds[11:length(trialEnds)]
+
 	nTrials = length(trialStarts)
 
 	for (t in 1:nTrials)
